@@ -42,6 +42,7 @@ interface AccountState {
   setError: (error: string | null) => void;
   updateStorage: (used: number) => void;
   clearError: () => void;
+  logout: () => void;
 }
 
 export const useAccountStore = create<AccountState>()(
@@ -99,6 +100,12 @@ export const useAccountStore = create<AccountState>()(
       },
 
       clearError: () => set({ error: null }),
+
+      logout: () => set({ 
+        accounts: [], 
+        activeAccountId: null, 
+        emails: [] 
+      }),
     }),
     {
       name: "mzansi-mail-storage",

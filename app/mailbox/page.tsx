@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAccountStore, Email, Account } from "@/store/accountStore";
 
 export default function MailboxPage() {
+  const router = useRouter();
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const { 
     accounts, 
@@ -16,7 +18,8 @@ export default function MailboxPage() {
     setEmails, 
     setSyncing,
     setError,
-    updateStorage 
+    updateStorage,
+    logout 
   } = useAccountStore();
 
   const activeAccount = accounts.find(a => a.id === activeAccountId);
@@ -173,6 +176,16 @@ export default function MailboxPage() {
             className="w-full mt-2 py-2 text-sm text-[#006B3C] border border-[#006B3C] rounded-lg hover:bg-green-50 disabled:opacity-50"
           >
             {isSyncing ? "Syncing..." : "Sync Now"}
+          </button>
+
+          <button 
+            onClick={() => {
+              logout();
+              router.push("/");
+            }}
+            className="w-full mt-2 py-2 text-sm text-red-600 border border-red-600 rounded-lg hover:bg-red-50"
+          >
+            Logout
           </button>
         </div>
       </div>
