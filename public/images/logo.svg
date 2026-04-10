@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#006B3C"/>
+      <stop offset="100%" style="stop-color:#008C4A"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  
+  <!-- Envelope body -->
+  <rect x="64" y="128" width="384" height="256" rx="24" fill="white" stroke="#006B3C" stroke-width="8"/>
+  
+  <!-- Envelope flap -->
+  <path d="M64 152 L256 288 L448 152" fill="none" stroke="#FFB612" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- SA Flag accent bar -->
+  <rect x="64" y="352" width="384" height="32" rx="4" fill="#DE3831"/>
+  <rect x="64" y="384" width="384" height="32" rx="4" fill="#FFB612"/>
+  <rect x="64" y="416" width="384" height="32" rx="4" fill="#006B3C"/>
+</svg>
