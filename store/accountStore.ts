@@ -3,116 +3,169 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export interface Email {
-  id: string;
-  subject: string;
-  from: string;
-  to: string;
-  date: string;
-  preview: string;
-  read: boolean;
-  hasAttachments: boolean;
-  body?: string;
-}
-
-export interface Account {
+// Saved account config (no password) for the login page
+export interface SavedAccount {
   id: string;
   email: string;
   name: string;
   colorTag: string;
-  totalStorage: number;
-  usedStorage: number;
-  lastSync?: string;
+  imapHost: string;
+  imapPort: number;
+  smtpHost: string;
+  smtpPort: number;
+  addedAt: string;
 }
 
-interface AccountState {
-  accounts: Account[];
-  activeAccountId: string | null;
+// Runtime account info from session
+export interface AccountInfo {
+  id: string;
+  email: string;
+  name: string;
+  colorTag: string;
+}
+
+export interface Email {
+  uid: number;
+  seq?: number;
+  subject: string;
+  from: string;
+  fromAddress: string;
+  to: string;
+  date: string;
+  read: boolean;
+  flagged?: boolean;
+  hasAttachments: boolean;
+  size?: number;
+  preview?: string;
+  body?: string;
+  html?: string;
+}
+
+export interface FullEmail {
+  uid: number;
+  subject: string;
+  from: string;
+  fromAddress: string;
+  to: string;
+  date: string;
+  read: boolean;
+  flagged?: boolean;
+  hasAttachments: boolean;
+  html: string | null;
+  text: string | null;
+  cc?: string;
+  attachments?: { filename?: string; contentType: string; size: number }[];
+  flags?: string[];
+}
+
+interface AccountStoreState {
+  // Persisted - saved account configs for login page
+  savedAccounts: SavedAccount[];
+
+  // Runtime - current session
+  currentAccount: AccountInfo | null;
+  currentFolder: string;
   emails: Email[];
-  isLoading: boolean;
+  selectedEmail: FullEmail | null;
   isSyncing: boolean;
+  isLoadingEmail: boolean;
   error: string | null;
-  setAccount: (account: Account) => void;
-  setActiveAccount: (id: string | null) => void;
-  setEmails: (emails: Email[]) => void;
-  addEmails: (emails: Email[]) => void;
-  markEmailRead: (id: string) => void;
-  setLoading: (loading: boolean) => void;
-  setSyncing: (syncing: boolean) => void;
+  totalEmails: number;
+  currentPage: number;
+  folders: { name: string; path: string; specialUse?: string | null }[];
+
+  // Saved accounts management
+  saveAccount: (account: SavedAccount) => void;
+  removeSavedAccount: (id: string) => void;
+
+  // Runtime
+  setCurrentAccount: (account: AccountInfo | null) => void;
+  setCurrentFolder: (folder: string) => void;
+  setEmails: (emails: Email[], total: number, page: number) => void;
+  setSelectedEmail: (email: FullEmail | null) => void;
+  markEmailRead: (uid: number) => void;
+  removeEmail: (uid: number) => void;
+  setSyncing: (v: boolean) => void;
+  setLoadingEmail: (v: boolean) => void;
   setError: (error: string | null) => void;
-  updateStorage: (used: number) => void;
-  clearError: () => void;
-  logout: () => void;
+  setFolders: (folders: { name: string; path: string; specialUse?: string | null }[]) => void;
+  reset: () => void;
 }
 
-export const useAccountStore = create<AccountState>()(
+export const useAccountStore = create<AccountStoreState>()(
   persist(
     (set, get) => ({
-      accounts: [],
-      activeAccountId: null,
+      savedAccounts: [],
+      currentAccount: null,
+      currentFolder: "INBOX",
       emails: [],
-      isLoading: false,
+      selectedEmail: null,
       isSyncing: false,
+      isLoadingEmail: false,
       error: null,
+      totalEmails: 0,
+      currentPage: 1,
+      folders: [],
 
-      setAccount: (account) => {
-        const { accounts } = get();
-        const existing = accounts.find((a) => a.id === account.id);
-        if (existing) {
-          set({ accounts: accounts.map((a) => (a.id === account.id ? account : a)) });
+      saveAccount: (account) => {
+        const { savedAccounts } = get();
+        const exists = savedAccounts.find((a) => a.id === account.id || a.email === account.email);
+        if (exists) {
+          set({
+            savedAccounts: savedAccounts.map((a) =>
+              a.id === account.id || a.email === account.email ? account : a
+            ),
+          });
         } else {
-          set({ accounts: [...accounts, account], activeAccountId: account.id });
+          set({ savedAccounts: [...savedAccounts, account] });
         }
       },
 
-      setActiveAccount: (id) => set({ activeAccountId: id }),
-
-      setEmails: (emails) => set({ emails }),
-
-      addEmails: (newEmails) => {
-        const { emails } = get();
-        const existingIds = new Set(emails.map((e) => e.id));
-        const uniqueNew = newEmails.filter((e) => !existingIds.has(e.id));
-        set({ emails: [...uniqueNew, ...emails] });
+      removeSavedAccount: (id) => {
+        const { savedAccounts } = get();
+        set({ savedAccounts: savedAccounts.filter((a) => a.id !== id) });
       },
 
-      markEmailRead: (id) => {
+      setCurrentAccount: (account) => set({ currentAccount: account }),
+      setCurrentFolder: (folder) => set({ currentFolder: folder }),
+
+      setEmails: (emails, total, page) =>
+        set({ emails, totalEmails: total, currentPage: page }),
+
+      setSelectedEmail: (email) => set({ selectedEmail: email }),
+
+      markEmailRead: (uid) => {
         const { emails } = get();
-        set({
-          emails: emails.map((e) => (e.id === id ? { ...e, read: true } : e)),
-        });
+        set({ emails: emails.map((e) => (e.uid === uid ? { ...e, read: true } : e)) });
       },
 
-      setLoading: (isLoading) => set({ isLoading }),
+      removeEmail: (uid) => {
+        const { emails } = get();
+        set({ emails: emails.filter((e) => e.uid !== uid) });
+      },
 
       setSyncing: (isSyncing) => set({ isSyncing }),
-
+      setLoadingEmail: (isLoadingEmail) => set({ isLoadingEmail }),
       setError: (error) => set({ error }),
+      setFolders: (folders) => set({ folders }),
 
-      updateStorage: (used) => {
-        const { accounts, activeAccountId } = get();
-        if (!activeAccountId) return;
+      reset: () =>
         set({
-          accounts: accounts.map((a) =>
-            a.id === activeAccountId ? { ...a, usedStorage: used, lastSync: new Date().toISOString() } : a
-          ),
-        });
-      },
-
-      clearError: () => set({ error: null }),
-
-      logout: () => set({ 
-        accounts: [], 
-        activeAccountId: null, 
-        emails: [] 
-      }),
+          currentAccount: null,
+          currentFolder: "INBOX",
+          emails: [],
+          selectedEmail: null,
+          isSyncing: false,
+          error: null,
+          totalEmails: 0,
+          currentPage: 1,
+          folders: [],
+        }),
     }),
     {
-      name: "mzansi-mail-storage",
+      name: "bizmail-accounts",
       partialize: (state) => ({
-        accounts: state.accounts,
-        activeAccountId: state.activeAccountId,
-        emails: state.emails,
+        savedAccounts: state.savedAccounts,
       }),
     }
   )

@@ -6,7 +6,7 @@ import { createImapClient } from "@/lib/imap";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, password, imapHost, imapPort, smtpHost, smtpPort } = body;
+    const { email, password, imapHost, imapPort, smtpHost, smtpPort, accountId, colorTag, name } = body;
 
     if (!email || !password || !imapHost || !smtpHost) {
       return NextResponse.json(
@@ -16,35 +16,22 @@ export async function POST(request: NextRequest) {
     }
 
     const encryptedPassword = encrypt(password);
-    const id = generateId();
-
-    const colorTags = [
-      "green",
-      "yellow",
-      "blue",
-      "red",
-      "purple",
-      "orange",
-    ];
-    const colorTag = colorTags[Math.floor(Math.random() * colorTags.length)];
-    const name = email
-      .split("@")[0]
-      .replace(/[._]/g, " ")
-      .replace(/\b\w/g, (l: string) => l.toUpperCase());
+    const id = accountId || generateId();
+    const accountName = name || email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase());
 
     const sessionData: SessionData = {
       accountId: id,
       email,
-      name,
+      name: accountName,
       encryptedPassword,
       imapHost,
       imapPort: parseInt(imapPort) || 993,
       smtpHost,
       smtpPort: parseInt(smtpPort) || 587,
-      colorTag,
+      colorTag: colorTag || "green",
     };
 
-    // Verify the IMAP connection actually works
+    // Verify credentials against IMAP
     const client = createImapClient(sessionData);
     try {
       await client.connect();
@@ -53,41 +40,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: `Cannot connect to IMAP server: ${err instanceof Error ? err.message : "Connection failed"}`,
+          error: `Authentication failed: ${err instanceof Error ? err.message : "Invalid credentials"}`,
         },
-        { status: 400 }
+        { status: 401 }
       );
     }
 
     const token = await createSession(sessionData);
 
-    const res = NextResponse.json({
-      success: true,
-      account: {
-        id,
-        email,
-        name,
-        colorTag,
-        imapHost,
-        imapPort: parseInt(imapPort) || 993,
-        smtpHost,
-        smtpPort: parseInt(smtpPort) || 587,
-      },
-    });
-
+    const res = NextResponse.json({ success: true });
     res.cookies.set(SESSION_COOKIE, token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+      maxAge: 60 * 60 * 24 * 7,
       path: "/",
     });
 
     return res;
   } catch (error) {
-    console.error("Connection error:", error);
+    console.error("Login error:", error);
     return NextResponse.json(
-      { success: false, error: "Failed to connect account" },
+      { success: false, error: "Login failed" },
       { status: 500 }
     );
   }

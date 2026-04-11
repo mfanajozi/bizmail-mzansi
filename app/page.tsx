@@ -29,9 +29,14 @@ export default function Home() {
               </div>
               <span className="text-2xl font-bold text-white">Mzansi BizMail</span>
             </div>
-            <Link href="/setup" className="px-6 py-2.5 bg-white text-[#006B3C] font-semibold rounded-lg hover:bg-gray-100 transition-colors shadow-md">
-              Get Started
-            </Link>
+            <div className="flex items-center gap-3">
+              <Link href="/login" className="px-5 py-2.5 bg-white/20 text-white font-semibold rounded-lg hover:bg-white/30 transition-colors border border-white/30">
+                Sign In
+              </Link>
+              <Link href="/setup" className="px-5 py-2.5 bg-white text-[#006B3C] font-semibold rounded-lg hover:bg-gray-100 transition-colors shadow-md">
+                Get Started
+              </Link>
+            </div>
           </div>
         </header>
 

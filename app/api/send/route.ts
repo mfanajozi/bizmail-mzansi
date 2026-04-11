@@ -1,50 +1,58 @@
 import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
-import { decrypt, getAccount } from "@/lib/crypto";
+import { getSessionFromRequest } from "@/lib/session";
+import { getPassword } from "@/lib/imap";
 
 export async function POST(request: NextRequest) {
+  const session = await getSessionFromRequest(request);
+  if (!session) {
+    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
-    const { accountId, to, subject, body: emailBody } = body;
+    const { to, subject, body: emailBody, cc, replyTo } = body;
 
-    const account = getAccount(accountId);
-    if (!account) {
-      return NextResponse.json(
-        { success: false, error: "Account not found" },
-        { status: 404 }
-      );
+    if (!to || !subject) {
+      return NextResponse.json({ success: false, error: "Missing to or subject" }, { status: 400 });
     }
 
-    const password = decrypt(account.encryptedPassword);
+    const password = getPassword(session);
     if (!password) {
-      return NextResponse.json(
-        { success: false, error: "Failed to decrypt password" },
-        { status: 500 }
-      );
+      return NextResponse.json({ success: false, error: "Failed to get credentials" }, { status: 500 });
     }
 
     const transporter = nodemailer.createTransport({
-      host: account.smtpHost,
-      port: account.smtpPort,
-      secure: account.smtpPort === 465,
+      host: session.smtpHost,
+      port: session.smtpPort,
+      secure: session.smtpPort === 465,
       auth: {
-        user: account.email,
+        user: session.email,
         pass: password,
+      },
+      tls: {
+        rejectUnauthorized: false,
       },
     });
 
     await transporter.sendMail({
-      from: account.email,
+      from: `${session.name} <${session.email}>`,
       to,
+      cc: cc || undefined,
+      replyTo: replyTo || undefined,
       subject,
       html: emailBody,
+      text: emailBody?.replace(/<[^>]*>/g, "") || "",
     });
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Send error:", error);
     return NextResponse.json(
-      { success: false, error: `Failed to send email: ${error instanceof Error ? error.message : "Unknown error"}` },
+      {
+        success: false,
+        error: `Failed to send: ${error instanceof Error ? error.message : "Unknown error"}`,
+      },
       { status: 500 }
     );
   }
