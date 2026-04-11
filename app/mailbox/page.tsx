@@ -81,9 +81,12 @@ function formatSize(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
-function getSenderName(from: string) {
-  const match = from.match(/^"?([^"<]+?)"?\s*<?[^>]*>?$/);
-  return match ? match[1].trim() : from.split("@")[0];
+function getSenderName(from: string): string {
+  // "Display Name" <email@host> or Display Name <email@host>
+  const withBracket = from.match(/^"?(.+?)"?\s*<[^>]+>$/);
+  if (withBracket) return withBracket[1].trim();
+  // Plain address only
+  return from.includes("@") ? from.split("@")[0] : from;
 }
 
 // ─── settings panel ──────────────────────────────────────────────────────────
@@ -538,7 +541,9 @@ export default function MailboxPage() {
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
     reset();
-    router.push("/login");
+    // Hard redirect so the browser re-requests /login with the cleared cookie,
+    // bypassing Next.js router cache which might still see the old session.
+    window.location.href = "/login";
   };
 
   const filteredEmails = emails.filter(
