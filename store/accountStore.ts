@@ -8,6 +8,8 @@ export interface SavedAccount {
   id: string;
   email: string;
   name: string;
+  displayName?: string; // user-editable display name
+  signature?: string;   // HTML signature
   colorTag: string;
   imapHost: string;
   imapPort: number;
@@ -37,8 +39,6 @@ export interface Email {
   hasAttachments: boolean;
   size?: number;
   preview?: string;
-  body?: string;
-  html?: string;
 }
 
 export interface FullEmail {
@@ -76,6 +76,7 @@ interface AccountStoreState {
 
   // Saved accounts management
   saveAccount: (account: SavedAccount) => void;
+  updateSavedAccount: (id: string, updates: Partial<SavedAccount>) => void;
   removeSavedAccount: (id: string) => void;
 
   // Runtime
@@ -109,7 +110,9 @@ export const useAccountStore = create<AccountStoreState>()(
 
       saveAccount: (account) => {
         const { savedAccounts } = get();
-        const exists = savedAccounts.find((a) => a.id === account.id || a.email === account.email);
+        const exists = savedAccounts.find(
+          (a) => a.id === account.id || a.email === account.email
+        );
         if (exists) {
           set({
             savedAccounts: savedAccounts.map((a) =>
@@ -119,6 +122,15 @@ export const useAccountStore = create<AccountStoreState>()(
         } else {
           set({ savedAccounts: [...savedAccounts, account] });
         }
+      },
+
+      updateSavedAccount: (id, updates) => {
+        const { savedAccounts } = get();
+        set({
+          savedAccounts: savedAccounts.map((a) =>
+            a.id === id ? { ...a, ...updates } : a
+          ),
+        });
       },
 
       removeSavedAccount: (id) => {
@@ -136,7 +148,9 @@ export const useAccountStore = create<AccountStoreState>()(
 
       markEmailRead: (uid) => {
         const { emails } = get();
-        set({ emails: emails.map((e) => (e.uid === uid ? { ...e, read: true } : e)) });
+        set({
+          emails: emails.map((e) => (e.uid === uid ? { ...e, read: true } : e)),
+        });
       },
 
       removeEmail: (uid) => {

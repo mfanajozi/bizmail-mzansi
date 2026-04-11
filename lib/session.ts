@@ -25,7 +25,7 @@ export async function createSession(data: SessionData): Promise<string> {
   return new SignJWT({ ...data })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime("7d")
+    .setExpirationTime("30d")
     .sign(secret);
 }
 
